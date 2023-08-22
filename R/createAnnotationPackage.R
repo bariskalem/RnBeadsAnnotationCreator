@@ -14,7 +14,7 @@
 #'
 #' @param object.name Name of the annotation object to load (if it exists) or save (if it needs to be created).
 #' @param info        Human-readable description of the annotation. This must be a one-element \code{character} vector.
-#' @param unpdate.fun Function to be called for creating the annotation object.
+#' @param update.fun Function to be called for creating the annotation object.
 #' @param ...         Parameters passed to the updating function.
 #' @return The loaded or initialized annotation object, invisibly.
 #'
@@ -80,6 +80,9 @@ rnb.export.annotations.to.data.files <- function() {
 			sites[[paste0("flagged", platform.id)]] <- get(sname, .globals)[["flagged"]]
 			framework[["controls"]][paste0("controls", platform.id)] <- list(NULL)
 			framework[["flagged"]][paste0("flagged", platform.id)] <- list(NULL)
+		}
+		if (!dir.exists(file.path(.globals[['DIR.PACKAGE']], "data"))){
+			dir.create(file.path(.globals[['DIR.PACKAGE']], "data"))
 		}
 		save(sites, file = rnb.get.package.data.file(sname), compression_level = 9L)
 		logger.status(c("Saved", sname, "annotation table and mappings to the package data"))
