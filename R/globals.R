@@ -57,6 +57,7 @@ DBSNP.FTP.BASE.MM<-"ftp://ftp.ncbi.nih.gov/snp/organisms/archive/" ##added archi
 
 REFERENCE2ASSEMBLY <- c(
 	"GRCh38" = "hg38",
+	"GRCh38.p7" = "hg38",
 	"GRCh37.p13" = "hg19",
 	"GCF_000001635.21" = "mm10", # GRCm38.p1
 	"GCF_000001635.22" = "mm10", # GRCm38.p2
@@ -79,8 +80,8 @@ UCSC.HTTP.BASE <- "http://hgdownload.cse.ucsc.edu/goldenPath/"
 ########################################################################################################################
 ## Gene Expression Omnibus
 
-## Base FPT directory of GEO's records dedicated to HumanMethylation27 and HumanMethylation450
-GEO.FTP.BASE <- "ftp://ftp.ncbi.nlm.nih.gov/pub/geo/DATA/supplementary/platforms/"
+## Base FTP directory of GEO's records dedicated to HumanMethylation27 and HumanMethylation450
+GEO.FTP.BASE <- "ftp://ftp.ncbi.nlm.nih.gov/geo/platforms/" 
 
 ########################################################################################################################
 ## Infinium 27k, 450k, and EPIC
