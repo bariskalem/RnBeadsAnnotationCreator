@@ -17,7 +17,7 @@
 #' @noRd
 createAnnotationPackage.hg38 <- function(){
 
-	suppressPackageStartupMessages(library(BSgenome.Hsapiens.NCBI.GRCh38))
+	suppressPackageStartupMessages(library(BSgenome.Hsapiens.UCSC.hg38))
 
 	## Genomic sequence and supported chromosomes
 	GENOME <- 'BSgenome.Hsapiens.NCBI.GRCh38'
@@ -29,7 +29,7 @@ createAnnotationPackage.hg38 <- function(){
 
 	## Download SNP annotation
 	logger.start("SNP Annotation")
-	vcf.files <- paste0(DBSNP.FTP.BASE, "human_9606_b147_GRCh38p2/VCF/All.vcf.gz")
+	vcf.files <- paste0(DBSNP.FTP.BASE, "human_9606_b150_GRCh38p7/VCF/00-All.vcf.gz")
 	update.annot("snps", "polymorphism information", rnb.update.dbsnp, ftp.files = vcf.files)
 	logger.completed()
 
@@ -37,6 +37,7 @@ createAnnotationPackage.hg38 <- function(){
 	biomart.parameters <- list(
 		database.name = "ENSEMBL_MART_ENSEMBL",
 		dataset.name = "hsapiens_gene_ensembl",
+		db.version = 109,
 		required.columns = c(
 			"id" = "ensembl_gene_id",
 			"chromosome" = "chromosome_name",
@@ -44,8 +45,8 @@ createAnnotationPackage.hg38 <- function(){
 			"end" = "end_position",
 			"strand" = "strand",
 			"symbol" = "hgnc_symbol",
-			"entrezID" = "entrezgene"),
-		host = "dec2014.archive.ensembl.org")
+			"entrezID" = "entrezgene_id"),
+		host = "https://www.ensembl.org")
 	logger.start("Region Annotation")
 	update.annot("regions", "region annotation", rnb.update.region.annotation,
 		biomart.parameters = biomart.parameters)
@@ -56,6 +57,22 @@ createAnnotationPackage.hg38 <- function(){
 	logger.start("Genomic Sites")
 	update.annot("sites", "CpG annotation", rnb.update.sites)
 	logger.completed()
+
+	## Define MethylationEPIC v2 probe annotations
+	logger.start("MethylationEPICv2")
+	table.columns <- rnb.get.illumina.annotation.columns("EPICv2")
+	update.annot("probesEPICv2", "MethylationEPICv2 annotation", rnb.update.probeEPICv2.annotation,
+	             table.columns = table.columns)
+	.globals[['sites']][["probesEPICv2"]] <- .globals[['probesEPICv2']][["probes"]]
+	logger.completed()
+	
+	## Add annotation columns to the context probes, showing if they are covered by an assay
+	logger.start("Updating Site Annotation with Probes")
+	.globals[['sites']] <- rnb.update.site.annotation.with.probes(sites = .globals[['sites']],
+	                                                              query.probes = c("probes27", "probes450", "probesEPIC", "probesEPICv2"),
+	                                                              platform.names = c("HumanMethylation27", "HumanMethylation450", "MethylationEPIC", "MethylationEPICv2"))
+	logger.completed()
+
 
 	## Create all possible mappings from regions to sites
 	logger.start("Mappings")
