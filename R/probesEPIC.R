@@ -71,13 +71,13 @@ rnb.update.probeEPIC.annotation <- function(table.columns, genome.build="hg19") 
 		probe.infos = read.csv(result, skip = assay.start, nrows = controls.start - assay.start - 2,
 						check.names = FALSE, stringsAsFactors = FALSE)
 		probe.infos$MAPINFO <- probe.infos$Start_hg38 + 1
-		probe.infos <- probe.infos[, !names(probe.infos) %in% 
-                            c("MFG_Change_Flagged", "CHR_hg38", "Start_hg38", "End_hg38", "Strand_hg38")
-                          ]
 		probe.infos <- probe.infos[, sapply(probe.infos, function(x) { !all(is.na(x)) })]
 	} else {
 		logger.error(paste0("Invalid genome build: '", genome.build, "'. try 'hg19' or 'hg38'"))
 	}
+	probe.infos <- probe.infos[, !names(probe.infos) %in% 
+						c("MFG_Change_Flagged", "CHR_hg38", "Start_hg38", "End_hg38", "Strand_hg38")
+					]
 	if (!identical(colnames(probe.infos), names(table.columns))) {
 			logger.error("Unexpected columns in the probe definition table")
 	}
