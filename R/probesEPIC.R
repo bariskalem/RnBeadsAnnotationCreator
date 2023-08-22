@@ -12,28 +12,29 @@
 #'
 #' Creates probe annotation tables for MethylationEPIC.
 #'
-#' @param table.columns Expected columns in the probe annotation table, given as a named \code{character} vector.
+#' @param table.columns 	Expected columns in the probe annotation table, given as a named \code{character} vector.
+#' @param genome.build  	Specify the genome build \code{hg38} or \code{hg19} for genome build specific \code{MAPINFO}
 #' @return \code{list} of two items:
 #'         \describe{
 #'           \item{\code{"probes"}}{\code{GRangesList} instance containing probe annotations, one \code{GRanges} per
 #'                chromosome.}
 #'           \item{\code{"controls"}}{\code{data.frame} with control probe annotation.}
 #'         }
-#' @author Yassen Assenov
+#' @author Yassen Assenov, Baris Kalem
 #' @noRd
-rnb.update.probeEPIC.annotation <- function(table.columns) {
+rnb.update.probeEPIC.annotation <- function(table.columns, genome.build="hg19") {
 
-	ftp.table <- "ftp://webdata2:webdata2@ussd-ftp.illumina.com/downloads/productfiles/methylationEPIC/infinium-methylationepic-v1-0-b2-manifest-file-csv.zip"
+	download.link <- "https://webdata.illumina.com/downloads/productfiles/methylationEPIC/infinium-methylationepic-v-1-0-b5-manifest-file-csv.zip"
 
 	## Download probe definition table from Illumina's web site
 	destfile <- file.path(.globals[['DIR.PACKAGE']], "temp", "probeEPIC.zip")
 	if (file.exists(destfile)) {
 		logger.status(c("File", destfile, "already downloaded"))
 	} else {
-		if (download.file(ftp.table, destfile, quiet = TRUE, mode = "wb") != 0) {
-			logger.error(c("Could not download", ftp.table))
+		if (download.file(download.link, destfile, quiet = TRUE, mode = "wb") != 0) {
+			logger.error(c("Could not download", download.link))
 		}
-		logger.status(c("Downloaded", ftp.table))
+		logger.status(c("Downloaded", download.link))
 	}
 
 	## Unzip the downloaded archive
@@ -61,17 +62,32 @@ rnb.update.probeEPIC.annotation <- function(table.columns) {
 	}
 	rm(txt); invisible(gc())
 
-	## Load the methylation and control probe annotation tables
-	probe.infos <- read.csv(result, skip = assay.start, nrows = controls.start - assay.start - 2, check.names = FALSE,
-		stringsAsFactors = FALSE)
-	probe.infos <- probe.infos[, sapply(probe.infos, function(x) { !all(is.na(x)) })]
+	## Load the methylation probe annotation table
+	if (genome.build == "hg19"){
+		probe.infos <- read.csv(result, skip = assay.start, nrows = controls.start - assay.start - 2, check.names = FALSE,
+			stringsAsFactors = FALSE)
+		probe.infos <- probe.infos[, sapply(probe.infos, function(x) { !all(is.na(x)) })]
+	} else if (genome.build == "hg38") {
+		probe.infos = read.csv(result, skip = assay.start, nrows = controls.start - assay.start - 2,
+						check.names = FALSE, stringsAsFactors = FALSE)
+		probe.infos$MAPINFO <- probe.infos$Start_hg38 + 1
+		probe.infos <- probe.infos[, !names(probe.infos) %in% 
+                            c("MFG_Change_Flagged", "CHR_hg38", "Start_hg38", "End_hg38", "Strand_hg38")
+                          ]
+		probe.infos <- probe.infos[, sapply(probe.infos, function(x) { !all(is.na(x)) })]
+	} else {
+		logger.error(paste0("Invalid genome build: '", genome.build, "'. try 'hg19' or 'hg38'"))
+	}
 	if (!identical(colnames(probe.infos), names(table.columns))) {
-		logger.error("Unexpected columns in the probe definition table")
+			logger.error("Unexpected columns in the probe definition table")
 	}
 	colnames(probe.infos) <- table.columns[colnames(probe.infos)]
+
+	## Load the control probe annotation table
 	control.probe.infos <- read.csv(result, header = FALSE, skip = controls.start, stringsAsFactors = FALSE)
 	control.probe.infos <- control.probe.infos[, sapply(control.probe.infos, function(x) { !all(is.na(x)) })]
 	logger.status("Loaded the probe definition tables from Illumina's web site")
+
 
 	## Validate probe.infos columns and some of the values
 	probe.infos[, "Design"] <- as.factor(probe.infos[, "Design"])

@@ -141,7 +141,7 @@ rnb.update.probe.annotation.methylumi <- function(platform = "HumanMethylation27
 
 #' rnb.probes.fix.infinium.columns
 #' 
-#' Validates the column values in an Inifinium probe annotation table.
+#' Validates the column values in an Infinium probe annotation table.
 #' @param probe.infos Probe annotation table to be validated.
 #' @return The modified and sorted annotation table.
 #' 
