@@ -17,7 +17,7 @@
 #' @author Yassen Assenov
 #' @noRd
 rnb.get.illumina.annotation.columns <- function(assay) {
-	tbl <- read.csv2(system.file("extdata/probeAnnotationColumns_2020.csv", package = "RnBeadsAnnotationCreator"),
+	tbl <- read.csv2(system.file("extdata/probeAnnotationColumns_2023.csv", package = "RnBeadsAnnotationCreator"),
 		check.names = FALSE, stringsAsFactors = FALSE)
 	tbl <- tbl[!is.na(tbl[, assay]), c(assay, "Name", "RnBeads")]
 	tbl <- tbl[order(tbl[, 1]), ]
@@ -170,10 +170,10 @@ rnb.probes.fix.infinium.columns <- function(probe.infos) {
 	probe.infos[, "Chromosome"] <- factor(as.character(probe.infos[, "Chromosome"]),
 			levels = names(.globals[['CHROMOSOMES']]))
 	if ("Color" %in% colnames(probe.infos)) {
-		if (!identical(levels(probe.infos[, "Color"]), c("", "Grn", "Red"))) {
+		if (!identical(unique(probe.infos[, "Color"]), c("", "Red", "Grn"))) {
 			logger.error("Unexpected color channel values in the probe definition table")
 		}
-		levels(probe.infos[, "Color"]) <- c("Both", "Grn", "Red")
+		levels(probe.infos[, "Color"]) <- c("Both", "Red", "Grn")
 	}
 	probe.infos[["ID"]] <- as.character(probe.infos[["ID"]])
 	rownames(probe.infos) <- probe.infos[["ID"]]
@@ -187,13 +187,14 @@ rnb.probes.fix.infinium.columns <- function(probe.infos) {
 		probe.infos[, "Strand"] <- rnb.fix.strand(probe.infos[, "Strand"])
 	}
 
-	## Improve the notation of CGI relation
-	cgi.relations <- c("Open Sea", "Island", "North Shelf", "North Shore", "South Shelf", "South Shore")
-	names(cgi.relations) <- c("", "Island", "N_Shelf", "N_Shore", "S_Shelf", "S_Shore")
-	if (!identical(levels(probe.infos[, "CGI Relation"]), names(cgi.relations))) {
-		logger.error("Unexpected values in column for relation to CpG island")
-	}
-	levels(probe.infos[, "CGI Relation"]) <- cgi.relations
+	## TODO: Improve the notation of CGI relation 
+	## TODO: EPIC v2 has a different format for cgi.relations. Will address at a later point.
+	# cgi.relations <- c("Open Sea", "Island", "North Shelf", "North Shore", "South Shelf", "South Shore")
+	# names(cgi.relations) <- c("", "Island", "N_Shelf", "N_Shore", "S_Shelf", "S_Shore")
+	# if (!identical(levels(probe.infos[, "CGI Relation"]), names(cgi.relations))) {
+	# 	logger.error("Unexpected values in column for relation to CpG island")
+	# }
+	# levels(probe.infos[, "CGI Relation"]) <- cgi.relations
 
 	## Sort based on chromosome and position
 	probe.infos[with(probe.infos, order(Chromosome, Location)), ]
@@ -218,9 +219,17 @@ rnb.update.probe.annotation.cpg.context <- function(probe.infos) {
 
 	genome.data <- rnb.genome.data()
 	calculate.cg <- function(chrom, loci, l.neighborhood) {
+		loci.length <- length(loci)
 		starts <- loci - l.neighborhood / 2L + 1L
 		ends <- loci + l.neighborhood / 2L
 		chrom.sequence <- genome.data[[chrom]]
+
+		## Filter loci that are out of range
+        out.of.range <- which(loci > length(chrom.sequence))
+        if (length(out.of.range) != 0){
+            loci <- loci[-out.of.range]
+        }
+
 		chrom.regions <- suppressWarnings(Views(chrom.sequence, start = starts, end = ends))
 
 		result <- data.frame(
@@ -228,7 +237,7 @@ rnb.update.probe.annotation.cpg.context <- function(probe.infos) {
 			"GC" = as.integer(rowSums(letterFrequency(chrom.regions, c("C", "G")))))
 
 		## Define probe context based on the targeted dinucleotide - CG, CC, CAG, CAH, CTG, CTH, Other
-		p.contexts <- factor(rep("CG", length(loci)), levels = c("CG", "CC", "CAG", "CAH", "CTG", "CTH", "Other"))
+		p.contexts <- factor(rep("CG", loci.length), levels = c("CG", "CC", "CAG", "CAH", "CTG", "CTH", "Other"))
 		bases1 <- suppressWarnings(as.character(Views(chrom.sequence, loci, loci)))
 		loci <- loci + 1L
 		bases2 <- suppressWarnings(as.character(Views(chrom.sequence, loci, loci)))
@@ -245,6 +254,12 @@ rnb.update.probe.annotation.cpg.context <- function(probe.infos) {
 			p.contexts[i.noncg[bases2 == "T" & bases3 != "G"]] <- "CTH"
 		}
 		result[["Context"]] <- p.contexts
+		## Fill null values for out of range loci
+        if (length(out.of.range) != 0){
+            result[out.of.range, "CpG"] <- 0L
+            result[out.of.range, "GC"] <- 0L
+            result[out.of.range, "Context"] <- "Other"
+        }
 		result
 	}
 #	l.neighborhoods <- as.list(rep(LENGTH.NEIGHBORHOOD, length(locations)))
@@ -272,6 +287,28 @@ rnb.update.probe.annotation.cpg.context <- function(probe.infos) {
 	logger.status("Calculated CpG density, GC content and probe target context")
 	return(probe.infos)
 }
+
+
+########################################################################################################################
+
+#' rnb.get.probe.idx
+#'
+#' Gets probe indices based on design and strand. Filters the indices based on loci length
+#'
+#' @param probe.infos 	...
+#' @param loci        	...
+#' @param inds        	...
+#' @param design        Probe design
+#' @param strand        Probe strand
+#' @author Baris Kalem
+#' @noRd
+rnb.get.probe.idx <- function(probe.infos, loci, inds, design, strand) {
+i <- which(probe.infos[inds, "Design"] == design & probe.infos[inds, "Strand"] == strand)
+i <- i[i <= length(loci)]
+return(i)
+
+}
+
 
 ########################################################################################################################
 
@@ -319,8 +356,14 @@ rnb.update.probe.annotation.msnps <- function(probe.infos, snps = .globals[['snp
 		alleles.A.exp <- rep(as.character(NA), times = length(inds))
 		alleles.B.exp <- rep(as.character(NA), times = length(inds))
 
+		## Filter loci that are out of range
+        out.of.range <- which(loci > length(chrom.sequence))
+        if (length(out.of.range) != 0){
+            loci <- loci[-out.of.range]
+        }
+
 		## For type I forward:
-		i <- which(probe.infos[inds, "Design"] == "I" & probe.infos[inds, "Strand"] == "+")
+		i <- rnb.get.probe.idx(probe.infos, loci, inds, "I", "+")
 		if (length(i) != 0) {
 			probe.regs[[chromosome]][i, "start"] <- loci[i]
 			probe.regs[[chromosome]][i, "end"] <- loci[i] + 50L
@@ -330,7 +373,7 @@ rnb.update.probe.annotation.msnps <- function(probe.infos, snps = .globals[['snp
 			alleles.B.exp[i] <- alleles.exp
 		}
 		## For type I reverse:
-		i <- which(probe.infos[inds, "Design"] == "I" & probe.infos[inds, "Strand"] == "-")
+		i <- rnb.get.probe.idx(probe.infos, loci, inds, "I", "-")
 		if (length(i) != 0) {
 			probe.regs[[chromosome]][i, "start"] <- loci[i] - 48L
 			probe.regs[[chromosome]][i, "end"] <- loci[i] + 2L
@@ -340,7 +383,7 @@ rnb.update.probe.annotation.msnps <- function(probe.infos, snps = .globals[['snp
 			alleles.B.exp[i] <- alleles.exp
 		}
 		## For type II forward:
-		i <- which(probe.infos[inds, "Design"] == "II" & probe.infos[inds, "Strand"] == "+")
+		i <- rnb.get.probe.idx(probe.infos, loci, inds, "II", "+")
 		if (length(i) != 0) {
 			probe.regs[[chromosome]][i, "start"] <- loci[i] + 1L
 			probe.regs[[chromosome]][i, "end"] <- loci[i] + 51L
@@ -349,7 +392,7 @@ rnb.update.probe.annotation.msnps <- function(probe.infos, snps = .globals[['snp
 			alleles.A.exp[i] <- gsub("G", "R", alleles.exp, fixed = TRUE)
 		}
 		## For type II reverse:
-		i <- which(probe.infos[inds, "Design"] == "II" & probe.infos[inds, "Strand"] == "-")
+		i <- rnb.get.probe.idx(probe.infos, loci, inds, "II", "-")
 		if (length(i) != 0) {
 			probe.regs[[chromosome]][i, "start"] <- loci[i] - 49L
 			probe.regs[[chromosome]][i, "end"] <- loci[i] + 1L
@@ -362,15 +405,15 @@ rnb.update.probe.annotation.msnps <- function(probe.infos, snps = .globals[['snp
 		probe.infos[inds, "Mismatches B"] <- mismatches(alleles.B.exp, alleles.B[inds])
 	}
 	rm(alleles.A, alleles.B, bisulfite.convert, REV.COMPLEMENT, reverse.complement, mismatches)
-	rm(chromosome, inds, loci, chrom.sequence, alleles.A.exp, alleles.B.exp, i)
+	rm(chromosome, inds, loci, chrom.sequence, alleles.A.exp, alleles.B.exp, i, out.of.range)
 	suppressWarnings(rm(dna.seq, alleles.exp))
 	logger.status("Counted mismatches between expected and defined allele sequence")
 
 	if (!is.null(snps)) {
 		snp.stats <- suppressWarnings(
 			foreach(pr.regs = probe.regs, snp.regs = snps[names(probe.regs)], .combine = rbind,
-					.export = "rnb.update.probe.annotation.snps.chrom") %dopar%
-				rnb.update.probe.annotation.snps.chrom(pr.regs, snp.regs))
+					.export = "rnb.update.probe.annotation.snps.chrom.iranges") %dopar%
+				rnb.update.probe.annotation.snps.chrom.iranges(pr.regs, snp.regs))
 		i <- as.integer(rownames(snp.stats))
 		for (cname in colnames(snp.stats)) {
 			probe.infos[[cname]] <- as.integer(NA)
@@ -424,8 +467,8 @@ rnb.update.probe.annotation.snps <- function(probe.infos, snps = .globals[['snps
 	probe.regs <- tapply(1:nrow(probe.regs), probe.infos$Chromosome, function(i) { probe.regs[i, ] })
 	snp.stats <- suppressWarnings(
 		foreach(pr.regs = probe.regs, snp.regs = snps[names(probe.regs)], .combine = rbind,
-				.export = "rnb.update.probe.annotation.snps.chrom") %dopar%
-			rnb.update.probe.annotation.snps.chrom(pr.regs, snp.regs))
+				.export = "rnb.update.probe.annotation.snps.chrom.iranges") %dopar%
+			rnb.update.probe.annotation.snps.chrom.iranges(pr.regs, snp.regs))
 	i <- as.integer(rownames(snp.stats))
 	for (cname in colnames(snp.stats)) {
 		probe.infos[[cname]] <- as.integer(NA)
@@ -481,6 +524,94 @@ rnb.update.probe.annotation.snps.chrom <- function(probe.regs, snps) {
 
 ########################################################################################################################
 
+#' rnb.update.probe.annotation.snps.chrom.iranges
+#'
+#' Computes, for one chromosome, overlap between Infinium probe target locations and sequences with SNPs.
+#' Uses iranges
+#'
+#' @param probe.regs Infinium probe locations in a \code{data.frame}.
+#' @param snps       Information about SNPs in the form of a \code{data.frame} containing at least the following
+#'                   columns: \code{"start"}, \code{"end"}, \code{"C2T"}, \code{"G2A"}.
+#' @return Matrix of three columns - \code{"SNPs 3"}, \code{"SNPs 5"} and \code{"SNPs Full"} - containing information on
+#'         overlap of target dinucleotides and probe sequences with SNPs.
+#' @author Baris Kalem
+#' @noRd
+
+rnb.update.probe.annotation.snps.chrom.iranges <- function(probe.regs, snps) {
+	suppressMessages(library(plyranges))
+
+	snp.stats <- matrix(0L, nrow = nrow(probe.regs), ncol = 3,
+		dimnames = list(rownames(probe.regs), c("SNPs 3", "SNPs 5", "SNPs Full")))
+	
+	if (!is.null(snps)){
+        # IRanges for - strand
+        probe.regs.g2a <- probe.regs
+        probe.regs.g2a$i <- row.names(probe.regs.g2a)
+        probe.regs.g2a <- probe.regs.g2a[probe.regs.g2a$strand == "-", ]
+        probe.regs.g2a <- as_iranges(probe.regs.g2a)
+        snps.g2a <- snps[snps$G2A == FALSE, ]
+        snps.g2a <- as_iranges(snps.g2a)
+
+        # IRanges for + strand
+        probe.regs.c2t <- probe.regs
+        probe.regs.c2t$i <- row.names(probe.regs.c2t)
+        probe.regs.c2t <- probe.regs.c2t[probe.regs.c2t$strand == "+", ]
+        probe.regs.c2t <- as_iranges(probe.regs.c2t)
+        snps.c2t <- snps[snps$C2T == FALSE, ]
+        snps.c2t <- as_iranges(snps.c2t)
+
+        # SNPs 3, 5, Full for - strand
+        overlaps.3.g2a <- mergeByOverlaps(probe.regs.g2a, snps.g2a, type="end", maxgap=2L)
+        counts.3.g2a <- table(overlaps.3.g2a$i)
+        if (length(counts.3.g2a) != 0){
+            for (i in seq_along(counts.3.g2a)){
+                snp.stats[names(counts.3.g2a)[i], 1] <- counts.3.g2a[i]
+            }
+        }
+        overlaps.5.g2a <- mergeByOverlaps(probe.regs.g2a, snps.g2a, type="end", maxgap=4L)
+        counts.5.g2a <- table(overlaps.5.g2a$i)
+        if (length(counts.5.g2a) != 0){
+            for (i in seq_along(counts.5.g2a)){
+                snp.stats[names(counts.5.g2a)[i], 2] <- counts.5.g2a[i]
+            }
+        }
+        overlaps.full.g2a <- mergeByOverlaps(probe.regs.g2a, snps.g2a)
+        counts.full.g2a <- table(overlaps.full.g2a$i)
+        if (length(counts.full.g2a) != 0){
+            for (i in seq_along(counts.full.g2a)){
+                snp.stats[names(counts.full.g2a)[i], 3] <- counts.full.g2a[i]
+            }
+        }
+
+        # SNPs 3, 5, Full for + strand
+        overlaps.3.c2t <- mergeByOverlaps(probe.regs.c2t, snps.c2t, type="start", maxgap=2L)
+        counts.3.c2t <- table(overlaps.3.c2t$i)
+        if (length(counts.3.c2t) != 0){
+            for (i in seq_along(counts.3.c2t)){
+                snp.stats[names(counts.3.c2t)[i], 1] <- counts.3.c2t[i]
+            }
+        }
+        overlaps.5.c2t <- mergeByOverlaps(probe.regs.c2t, snps.c2t, type="start", maxgap=4L)
+        counts.5.c2t <- table(overlaps.5.c2t$i)
+        if (length(counts.5.c2t != 0)){
+            for (i in seq_along(counts.5.c2t)){
+                snp.stats[names(counts.5.c2t)[i], 2] <- counts.5.c2t[i]
+            }
+        }
+
+        overlaps.full.c2t <- mergeByOverlaps(probe.regs.c2t, snps.c2t)
+        counts.full.c2t <- table(overlaps.full.c2t$i)
+        if (length(counts.full.c2t != 0)){
+            for (i in seq_along(counts.full.c2t)){
+                snp.stats[names(counts.full.c2t)[i], 3] <- counts.full.c2t[i]
+            }
+        }    
+    }
+	return(snp.stats)
+}
+
+########################################################################################################################
+
 #' rnb.update.probe.annotation.cr
 #'
 #' Extracts information on cross-reactive probes.
@@ -496,8 +627,10 @@ rnb.update.probe.annotation.cr <- function(probe.ids, platform) {
 		fname <- "probes27"
 	} else if (platform == "HumanMethylation450") {
 		fname <- "probes450"
-	} else { # platform == "MethylationEPIC"
+	} else if (platform == "MethylationEPIC") { 
 		fname <- "probesEPIC"
+	} else { # platform == "MethylationEPICv2"
+		fname <- "probesEPICv2"
 	}
 	fname <- paste0("extdata/", .globals[['assembly']], ".", fname, ".crossreactive.txt")
 	fname <- system.file(fname, package = "RnBeadsAnnotationCreator")

@@ -1,0 +1,109 @@
+27k,450k,EPIC,EPICv2,MOUSE,Name,RnBeads
+1,1,1,1,1,IlmnID,ID
+2,2,2,2,2,Name,Name
+3,,,,,IlmnStrand,IlmnStrand
+4,3,3,3,3,AddressA_ID,AddressA
+5,4,4,4,4,AlleleA_ProbeSeq,AlleleA Probe Sequence
+6,5,5,5,5,AddressB_ID,AddressB
+7,6,6,6,6,AlleleB_ProbeSeq,AlleleB Probe Sequence
+,7,7,15,14,Infinium_Design_Type,Design
+18,8,8,7,7,Next_Base,Next Base
+19,9,9,8,8,Color_Channel,Color
+,10,10,21,21,Forward_Sequence,Forward Sequence
+8,,,,,GenomeBuild,Genome Build
+,11,11,19,19,Genome_Build,Genome Build
+9,,,,,Chr,Chromosome
+,12,12,16,16,CHR,Chromosome
+10,,,,,MapInfo,Location
+,13,13,17,17,MAPINFO,Location
+11,,,,,Ploidy,Ploidy
+12,,,18,,Species,Species
+13,,,,,Source,Source
+14,,,,,SourceVersion,Source Version
+15,,,,,SourceStrand,Strand
+16,14,14,,20,SourceSeq,Source Sequence
+,,,20,,Source_Seq,Source Sequence
+17,,,,,TopGenomicSeq,Top Genomic Sequence
+20,,,,,TSS_Coordinate,TSS Coordinate
+21,,,,,Gene_Strand,Gene Strand
+22,,,,,Gene_ID,Gene ID
+23,,,,,Symbol,Symbol
+24,,,,,Synonym,Synonym
+25,,,,,Accession,Accession
+26,,,,,GID,GID
+27,,,,,Annotation,Annotation
+28,,,,,Product,Product
+29,,,,,Distance_to_TSS,Distance to TSS
+,22,16,25,,UCSC_RefGene_Name,UCSC RefGene Name
+,23,17,26,,UCSC_RefGene_Accession,UCSC RefGene Accession
+,24,18,24,,UCSC_RefGene_Group,UCSC RefGene Group
+,,,23,,Rep_Num,Replicate Number
+30,,,,,CPG_ISLAND,CpG Island
+31,,,,,CPG_ISLAND_LOCATIONS,CpG Island Locations
+32,,,,,MIR_CPG_ISLAND,MIR CpG Island
+33,,,,,MIR_NAMES,MIR Names
+,25,19,27,,UCSC_CpG_Islands_Name,UCSC CpG Islands Name
+,26,20,28,,Relation_to_UCSC_CpG_Island,CGI Relation
+,27,,,,Phantom,Phantom
+,,21,,,Phantom4_Enhancers,Phantom4 Enhancers
+,,22,32,,Phantom5_Enhancers,Phantom5 Enhancers
+,28,23,37,,DMR,DMR
+,29,,,,Enhancer,Enhancer
+,,24,36,,450k_Enhancer,Enhancer
+,30,25,33,,HMM_Island,HMM Island
+,31,26,34,,Regulatory_Feature_Name,Regulatory Feature Name
+,32,27,35,,Regulatory_Feature_Group,Regulatory Feature Group
+,,,29,,GencodeV41_Group,Gencode41 Group
+,,,30,,GencodeV41_Name,Gencode41 Name
+,,,31,,GencodeV41_Accession,Gencode41 Accession
+,,28,,,GencodeBasicV12_NAME,Gencode12 Basic Name
+,,29,,,GencodeBasicV12_Accession,Gencode12 Basic Accession
+,,30,,,GencodeBasicV12_Group,Gencode12 Basic Group
+,,31,,,GencodeCompV12_NAME,Gencode12 Comp Name
+,,32,,,GencodeCompV12_Accession,Gencode12 Comp Accession
+,,33,,,GencodeCompV12_Group,Gencode12 Comp Group
+,,34,38,,DNase_Hypersensitivity_NAME,DNase Hypersensitivity Name
+,,35,,,DNase_Hypersensitivity_Evidence_Count,DNase Hypersensitivity Evidence
+,,36,41,,OpenChromatin_NAME,Open Chromatin Name
+,,37,42,,OpenChromatin_Evidence_Count,Open Chromatin Evidence
+,,38,,,TFBS_NAME,TFBS Name
+,,39,,,TFBS_Evidence_Count,TFBS Evidence
+,21,40,44,,Methyl27_Loci,HumanMethylation27
+,,41,43,,Methyl450_Loci,HumanMethylation450
+,,,45,,EPICv1_Loci,EPICv1
+,15,42,,,Chromosome_36,Chromosome.36
+,16,43,,,Coordinate_36,Location.36
+,,44,47,,SNP_ID,SNP ID
+,,45,48,,SNP_DISTANCE,SNP Distance
+,,46,49,,SNP_MinorAlleleFrequency,SNP Minor Allele Frequency
+,20,47,,,Random_Loci,Random
+,17,15,,11,Strand,Strand
+,18,,,,Probe_SNPs,Probe SNPs
+,19,,,,Probe_SNPs_10,Probe SNPs 10
+,33,,,,DHS,DHS
+,,,22,22,Top_Sequence,Top Sequence
+,,,,23,Genome_Build_NCBI,
+,,,11,,Strand_FR,Strand
+,,,12,12,Strand_TB,Strand TB
+,,,13,13,Strand_CO,Strand CO
+,,,,24,N_Shelf,N Shelf
+,,,,25,N_Shore,N Shore
+,,,,26,CpG_Island,CpG Island
+,,,,27,CpG_Island_chrom,CpG Island chrom
+,,,,28,CpG_Island_chromStart,CpG Island chromStart
+,,,,29,CpG_Island_chromEnd,CpG Island chromEnd
+,,,,30,CpG_Island_length,CpG Island length
+,,,,31,CpG_Island_cpgNum,CpG Island cpgNum
+,,,,32,CpG_Island_gcNum,CpG Island gcNum
+,,,,33,CpG_Island_perCpg,CpG Island perCpg
+,,,,34,CpG_Island_perGc,CpG Island perGc
+,,,,35,CpG_Island_obsExp,CpG Island obsExp
+,,,,36,S_Shore,S Shore
+,,,,37,S_Shelf,S Shelf
+,,,,38,MFG_Change_Flagged,MFG Change Flagged
+,,,9,,col,Color 1Letter
+,,,10,,Probe_Type,Probe Type
+,,,14,,Infinium_Design,Infinium Design
+,,,39,,Encode_CisReg_Site,Encode CisReg Site
+,,,40,,Encode_CisReg_Site_Evid,Encode CisReg Site Evid
+,,,46,,Manifest_probe_match,Manifest Probe Match
