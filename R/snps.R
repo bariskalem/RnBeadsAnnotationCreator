@@ -21,6 +21,8 @@
 #' @author Yassen Assenov
 #' @noRd
 rnb.update.download.dbsnp <- function(ftp.files, base.dir) {
+    ## TODO: This part is done manually for now. dbSNP files are split using vcftools in shell. a
+    ## TODO: Automate ^^^
     if (!(is.character(ftp.files) && length(ftp.files) > 0 && all(!is.na(ftp.files)))) {
         stop("invalid value for ftp.files; expected character")
     }
@@ -264,7 +266,7 @@ rnb.construct.snp.types <- function(snp.df) {
 #' @return SNP annotation in the form of a \code{list} of \code{data.frame} objects, one per chromosome.
 #' @author Yassen Assenov
 #' @noRd
-rnb.update.dbsnp <- function(ftp.files, job_batch_size=200000L, job_scheduler="LSF", submit_jobs=TRUE) {
+rnb.update.dbsnp <- function(ftp.files, job_batch_size=200000L, job_scheduler="SLURM", submit_jobs=TRUE) {
     fname <- file.path(.globals[["DIR.PACKAGE"]], "temp", "snps.all.RData")
     if (file.exists(fname)) {
         load(fname) # -> snps, db.version
@@ -284,6 +286,7 @@ rnb.update.dbsnp <- function(ftp.files, job_batch_size=200000L, job_scheduler="L
         logger.completed()
 
         db.version <- sapply(snps, attr, "version")
+        snps <- do.call(rbind, snps) # slow
         if (length(unique(db.version)) != 1) {
             logger.warning(c("Differing version strings in the downloaded files; versions are concatenated"))
         }
@@ -304,7 +307,7 @@ rnb.update.dbsnp <- function(ftp.files, job_batch_size=200000L, job_scheduler="L
     if (.globals[['SNP_MAX']] != 0 && .globals[['SNP_MAX']] <= max(sapply(snps, nrow))) {
         if(!is.null(job_scheduler)){
             fname <- normalizePath(fname, '/')
-            dname <- normalizePath(file.path(.globals[["DIR.PACKAGE"]], "temp", "qsub"), '/', FALSE)
+            dname <- normalizePath(file.path(.globals[["DIR.PACKAGE"]], "temp", "sbatch"), '/', FALSE)
             if(submit_jobs){
                 logger.info(paste('Submitting jobs to a', job_scheduler, 'cluster'))
                 jids<-rnb.split.snps(fname, dname, batch.size=job_batch_size, scheduler=job_scheduler, continue=file.exists(dname))
@@ -315,7 +318,9 @@ rnb.update.dbsnp <- function(ftp.files, job_batch_size=200000L, job_scheduler="L
                     }else if(job_scheduler=="PBS"){
                         res<-system(sprintf("qstat -l %s", paste(jidsm, collapse=" ")), intern=TRUE)
                         n_running_jobs<-length(res)
-                    }
+                    }else if(job_scheduler=="SLURM"){
+                        res<-system("squeue -u $USER -h -t pending,running -r | grep -c 'SNPs_'", intern=TRUE) # change terminal username if needed
+                        n_running_jobs<-res
                     if(n_running_jobs==0){
                         break;
                     }else{
@@ -380,7 +385,7 @@ rnb.update.dbsnp <- function(ftp.files, job_batch_size=200000L, job_scheduler="L
 #' @author Yassen Assenov
 #' @export
 rnb.split.snps <- function(snps.file, temp.directory, R.executable = paste0(Sys.getenv("R_HOME"), "/bin/R"),
-    batch.size = 200000L, scheduler=c("PBS", "LSF")[1L], continue=FALSE) {
+    batch.size = 200000L, scheduler=c("PBS", "LSF", "SLURM")[1L], continue=FALSE) {
 
     ## Validate parameters
     validate.path <- function(x, pname, is.file = TRUE) {
@@ -499,6 +504,17 @@ rnb.split.snps <- function(snps.file, temp.directory, R.executable = paste0(Sys.
                     paste0('#BSUB -e "', temp.directory, '/', logfile, '.err"'), '',
                     paste0('cd "', temp.directory, '"'),
                     paste0('"', R.executable, '" --no-restore --no-save --args ', R.args, ' < ', fname, '.R'), '')
+        }else if(scheduler=="SLURM"){
+            slurm_mem<-gsub("m", "M", mem)
+            if (!is.null(mem)) { txt <- c(txt, sprintf('#SBATCH --mem-per-cpu=%s ', slurm_mem)) }
+            if (!is.null(walltime)) { txt <- c(txt, paste0('#SBATCH -t ', walltime, ':00:00')) }
+            txt <- c(txt, '#SBATCH --ntasks=1',
+                    '#SBATCH --cpus-per-task=1',
+                    # paste0('#SBATCH -o "', temp.directory, '/', logfile, '.log"'), '',
+                    # paste0('#SBATCH -e "', temp.directory, '/', logfile, '.err"'), '',
+                    # paste0('#SBATCH -t ', walltime, ':00:00'),
+                    paste0('cd "', temp.directory, '"'),
+                    paste0('"', R.executable, '" --no-restore --no-save --args ', R.args, ' < ', fname, '.R'), '')
         }else{
             stop("Unsupported value for job scheduler")
         }
@@ -535,6 +551,15 @@ rnb.split.snps <- function(snps.file, temp.directory, R.executable = paste0(Sys.
             lsf_mem<-as.integer(ceiling(batch.size / 500L))
             lsf_walltime<-as.integer(ceiling(batch.size / 250000))
             ids1[i] <- sprintf('LSB_JOB_REPORT_MAIL=N bsub -M %d -R "rusage[mem=%d]" -W %0d:00 -J SNPs_%05d -env "all,i=%05d" "%s/snp.types.sh"', lsf_mem, lsf_mem, lsf_walltime, i, i, temp.directory)
+        }else if(scheduler=="SLURM"){
+            # exclude_nodes<-'deep-cs-[04-07,11-13,16]' ## Specify excluded nodes with '--exclude=' option
+            slurm_mem<-as.integer(ceiling(batch.size / 500L))
+            slurm_walltime<-as.integer(ceiling(batch.size / 250000))
+            # ids1[i] <- sprintf('sbatch --job-name=\"SNPs_%05d\" --mem-per-cpu=%dMB -t %0d:00 \"%s/snp.types.sh\"', i, slurm_mem, slurm_walltime, temp.directory)
+            log.dir <- sprintf('%s/%05d.log', temp.directory, i)
+            error.dir <- sprintf('%s/%05d.err', temp.directory, i)
+            ids1[i] <- sprintf('sbatch -J SNPs_%05d --exclusive --output=%s --error=%s --mem-per-cpu=%d --export=i=%05d "%s/snp.types.sh"',
+                                 i, log.dir, error.dir, slurm_mem, i, temp.directory)
         }
         cat(ids1[i], sep="\n")
         ids1[i] <- system(ids1[i], intern = TRUE)
@@ -565,6 +590,17 @@ rnb.split.snps <- function(snps.file, temp.directory, R.executable = paste0(Sys.
             txt <- paste0('LSB_JOB_REPORT_MAIL=N bsub -J SNPs_combine_', chrom, ' ', mem_token, ' -W ', walltime, ':00 ',
                     dependency_token,
                     ' -env "all,chrom=', chrom, ',istart=', i[1], ',iend=', i[2], ',fn=', fname, '" ',
+                    '"', temp.directory, '/snp.combine.sh"')
+        }else if(scheduler=="SLURM"){
+            error.dir <- paste0(temp.directory, "/", chrom, ".err")
+            log.dir <- paste0(temp.directory, "/", chrom, ".log")
+            # pattern <- ".*(SNPs_\\d+).*"
+            # deps <- sub(pattern, "\\1", ids1[i[1]:i[2]]) # This retrieves the jobid of the dependency e.g. "SNPs_00654"
+            txt <- paste0('sbatch --job-name=SNPs_combine_', chrom, ' --mem=', mem, 'G --time=', walltime, ':00:00 ',
+                "--error=", error.dir, " --output=", log.dir,
+                # '-d afterok:', sprintf('%SNPs_%05d', i[2]), ## TODO: dependent job?
+                " --exclusive", ## TODO: this is not tested. But I assume it should be fine.
+                ' --export="chrom=', chrom, ',istart=', i[1], ',iend=', i[2], ',fn=', fname, '" ',
                     '"', temp.directory, '/snp.combine.sh"')
         }
         cat(txt, sep="\n")
