@@ -280,6 +280,14 @@ rnb.update.probesEPICv2.snps <- function(probe.infos) {
 	probesEPIC.rs <- rnb.annotation2data.frame(.globals$sites$probesEPIC)
 	probesEPIC.rs <- probesEPIC.rs[grep("^rs", rownames(probesEPIC.rs)), ]
 	extended.ids.epic <- paste(probesEPIC.rs$ID, probesEPIC.rs$Design, probesEPIC.rs$Color, sep = ".")
+
+	## Use the MAF data from the manifest 
+	probe.infos[["SNPs MAF"]] <- sapply(seq_len(nrow(probe.infos)), function(i) {
+		SNP_DISTANCE <- as.numeric(strsplit(as.character(probe.infos[i, "SNP Distance"]), ";")[[1]])
+		SNP_MAF <- as.numeric(strsplit(as.character(probe.infos[i, "SNP Minor Allele Frequency"]), ";")[[1]])
+		
+		sum(SNP_DISTANCE < 3 & SNP_MAF > 0.05)
+	})
 	
 	## Map the SNP probes in EPIC v2 to the corresponding SNP probes in EPIC v2
 	i <- grep("^rs", probe.infos$ID)

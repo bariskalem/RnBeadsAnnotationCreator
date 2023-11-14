@@ -726,7 +726,7 @@ rnb.probe.infos.to.GRanges <- function(probe.infos) {
 	starts[is.na(starts)] <- 0L
 	cnames <- c("Strand", "AddressA", "AddressB", "Design", "Color", "Context", "Random", "HumanMethylation27",
 		"HumanMethylation450", "Mismatches A", "Mismatches B", "CGI Relation", "CpG", "GC", "SNPs 3", "SNPs 5",
-		"SNPs Full", "Cross-reactive")
+		"SNPs MAF", "SNPs Full", "Cross-reactive")
 	cnames <- as.list(probe.infos[, intersect(cnames, colnames(probe.infos))])
 	result <- c(list(seqnames = probe.infos[, "Chromosome"],
 			ranges = IRanges(start = starts, end = starts + 1L, names = probe.infos[, "ID"]),
