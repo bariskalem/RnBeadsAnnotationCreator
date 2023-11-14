@@ -71,6 +71,18 @@ rnb.update.probeEPIC.annotation <- function(table.columns, genome.build="hg19") 
 		probe.infos = read.csv(result, skip = assay.start, nrows = controls.start - assay.start - 2,
 						check.names = FALSE, stringsAsFactors = FALSE)
 		probe.infos$MAPINFO <- probe.infos$Start_hg38 + 1
+		
+		# probe.infos$CHR <- probe.infos$CHR_hg38 
+
+		## Update MAPINFO and CHR to hg38 info
+		probe.infos$MAPINFO <- ifelse(!is.na(probe.infos$Start_hg38) & (probe.infos$Strand != ""),
+									 probe.infos$Start_hg38 + 1, probe.infos$MAPINFO)
+		probe.infos$CHR <- ifelse(!is.na(probe.infos$CHR_hg38) & !is.na(probe.infos$MAPINFO),
+									 probe.infos$CHR_hg38, probe.infos$CHR)
+		
+		i <- which(probe.infos$CHR_hg38 == "chrM") 
+		probe.infos <- probe.infos[-i, ]
+		
 		probe.infos <- probe.infos[, sapply(probe.infos, function(x) { !all(is.na(x)) })]
 	} else {
 		logger.error(paste0("Invalid genome build: '", genome.build, "'. try 'hg19' or 'hg38'"))

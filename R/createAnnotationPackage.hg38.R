@@ -58,6 +58,14 @@ createAnnotationPackage.hg38 <- function(){
 	update.annot("sites", "CpG annotation", rnb.update.sites)
 	logger.completed()
 
+	## Define MethylationEPIC v1 probe annotations
+	logger.start("MethylationEPIC")
+	table.columns <- rnb.get.illumina.annotation.columns("EPIC")
+	update.annot("probesEPIC", "MethylationEPIC annotation", rnb.update.probeEPIC.annotation,
+		table.columns = table.columns, genome.build = "hg38")
+	.globals[['sites']][["probesEPIC"]] <- .globals[['probesEPIC']][["probes"]]
+	logger.completed()
+
 	## Define MethylationEPIC v2 probe annotations
 	logger.start("MethylationEPICv2")
 	table.columns <- rnb.get.illumina.annotation.columns("EPICv2")

@@ -143,11 +143,12 @@ rnb.update.probe.annotation.methylumi <- function(platform = "HumanMethylation27
 #' 
 #' Validates the column values in an Infinium probe annotation table.
 #' @param probe.infos Probe annotation table to be validated.
+#' @param platform Assay name
 #' @return The modified and sorted annotation table.
 #' 
-#' @author Yassen Assenov
+#' @author Yassen Assenov & Baris Kalem
 #' @noRd
-rnb.probes.fix.infinium.columns <- function(probe.infos) {
+rnb.probes.fix.infinium.columns <- function(probe.infos, platform=NA) {
 	probe.infos[, "Chromosome"] <- as.character(probe.infos[, "Chromosome"])
 	i <- which(probe.infos[, "Chromosome"] == "")
 	if (length(i) != 0) { probe.infos[i, "Chromosome"] <- NA }
@@ -170,10 +171,11 @@ rnb.probes.fix.infinium.columns <- function(probe.infos) {
 	probe.infos[, "Chromosome"] <- factor(as.character(probe.infos[, "Chromosome"]),
 			levels = names(.globals[['CHROMOSOMES']]))
 	if ("Color" %in% colnames(probe.infos)) {
-		if (!identical(unique(probe.infos[, "Color"]), c("", "Red", "Grn"))) {
+		if (!identical(as.factor(levels(probe.infos[, "Color"])), c("", "Grn", "Red"))) {
 			logger.error("Unexpected color channel values in the probe definition table")
 		}
-		levels(probe.infos[, "Color"]) <- c("Both", "Red", "Grn")
+		probe.infos[, "Color"] <- as.factor(probe.infos[, "Color"])
+		levels(probe.infos[, "Color"]) <- c("Both", "Grn", "Red")
 	}
 	probe.infos[["ID"]] <- as.character(probe.infos[["ID"]])
 	rownames(probe.infos) <- probe.infos[["ID"]]
@@ -186,15 +188,50 @@ rnb.probes.fix.infinium.columns <- function(probe.infos) {
 	if ("Strand" %in% colnames(probe.infos)) {
 		probe.infos[, "Strand"] <- rnb.fix.strand(probe.infos[, "Strand"])
 	}
+	if (platform == "EPICv2") {
+		find.relation <- function(location, relations, ranges) {
+			if (relations == "") {
+				return(relations)
+			}
+			relations <- strsplit(as.character(relations), ";")[[1]]
+			ranges_with_chr <- strsplit(as.character(ranges), ";")[[1]]
+
+			start_locations <- integer(length(relations))
+			end_locations <- integer(length(relations))
+
+			for (i in seq_along(ranges_with_chr)) {
+				chr_and_range <- strsplit(as.character(ranges_with_chr[i]), ":")[[1]]
+				range <- as.numeric(strsplit(as.character(chr_and_range[2]), "-")[[1]])
+				start_locations[i] <- range[1]
+				end_locations[i] <- range[2]
+			}
+
+			query <- IRanges(start=location, end=location)
+			iranges <- IRanges(start=start_locations, end=end_locations)
+
+			i <- nearest(query, iranges)
+			result <- relations[i]
+			if (result == ""){
+				return("")
+			}
+			return(result)
+		}
+
+		probe.infos[, "CGI Relation"] <- mapply(find.relation, probe.infos[, "Location"],
+												probe.infos[, "CGI Relation"],
+												probe.infos[, "UCSC CpG Islands Name"])
+	}
+
+
 
 	## TODO: Improve the notation of CGI relation 
-	## TODO: EPIC v2 has a different format for cgi.relations. Will address at a later point.
-	# cgi.relations <- c("Open Sea", "Island", "North Shelf", "North Shore", "South Shelf", "South Shore")
-	# names(cgi.relations) <- c("", "Island", "N_Shelf", "N_Shore", "S_Shelf", "S_Shore")
-	# if (!identical(levels(probe.infos[, "CGI Relation"]), names(cgi.relations))) {
-	# 	logger.error("Unexpected values in column for relation to CpG island")
-	# }
-	# levels(probe.infos[, "CGI Relation"]) <- cgi.relations
+	cgi.relations <- c("Open Sea", "Island", "North Shelf", "North Shore", "South Shelf", "South Shore")
+	names(cgi.relations) <- c("", "Island", "N_Shelf", "N_Shore", "S_Shelf", "S_Shore")
+	probe.infos[, "CGI Relation"] <- as.factor(probe.infos[, "CGI Relation"])
+	if (!identical(levels(probe.infos[, "CGI Relation"]), names(cgi.relations))) {
+		logger.error("Unexpected values in column for relation to CpG island")
+	}
+	levels(probe.infos[, "CGI Relation"]) <- cgi.relations
 
 	## Sort based on chromosome and position
 	probe.infos[with(probe.infos, order(Chromosome, Location)), ]

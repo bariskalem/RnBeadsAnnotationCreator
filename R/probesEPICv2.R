@@ -82,7 +82,7 @@ rnb.update.probeEPICv2.annotation <- function(table.columns) {
 	probe.infos[, "DMR"] <- as.factor(probe.infos[, "DMR"])
 	probe.infos[, "Enhancer"] <- as.factor(probe.infos[, "Enhancer"])
 	probe.infos[, "Regulatory Feature Group"] <- as.factor(probe.infos[, "Regulatory Feature Group"])
-	probe.infos <- rnb.probes.fix.infinium.columns(probe.infos)
+	probe.infos <- rnb.probes.fix.infinium.columns(probe.infos, platform = "EPICv2")
 
 	## Validate the control probes
 	if (ncol(control.probe.infos) != 5) {
